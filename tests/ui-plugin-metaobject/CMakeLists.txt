@@ -89,4 +89,11 @@ target_link_libraries(ticker_panel_plugin PRIVATE Qt6::Core Qt6::RemoteObjects)
 add_executable(ui_plugin_metaobject_check
     "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
 )
+# The checker needs exactly one of the plugin's headers: the LogosAPI stub it
+# passes to initLogos(). The real host has the real one; everything else it
+# still resolves by string.
+target_include_directories(ui_plugin_metaobject_check PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/stubs"
+)
+
 target_link_libraries(ui_plugin_metaobject_check PRIVATE Qt6::Core)

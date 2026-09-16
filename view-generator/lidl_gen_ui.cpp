@@ -110,8 +110,28 @@ QString lidlMakeUiGlueHeader(const UiGlueSpec& spec)
     s << "    // connects to this by name and stops waiting on the first one.\n";
     s << "    void unloadFinished();\n\n";
     s << "private:\n";
-    s << "    std::unique_ptr<" << spec.backendClass << "> m_backend;\n";
+    // DECLARATION ORDER IS THE CONTRACT. Members are destroyed in reverse
+    // declaration order, so the typed-deps aggregate is declared FIRST in
+    // order to be destroyed LAST -- after the backend that reaches its
+    // dependencies through it.
+    //
+    // A view backend is entitled to call modules() from its destructor: it is
+    // the only door it has to its dependencies, and teardown is exactly when a
+    // view wants to use it. Emitted the other way round, that read lands in
+    // freed memory and NOTHING says so -- isContextReady() keeps answering
+    // true, because the pointer LogosUiPluginContext holds is never cleared,
+    // so the call goes out and comes back wrong instead of crashing. That is
+    // what made a chat_ui teardown report "consumer wrapper has no transport
+    // (null bridge)" rather than fault.
+    //
+    // Pinned twice, because a comment does not survive an editor: the
+    // `view-generator` check greps the two lines' order, and
+    // `ui-plugin-metaobject` destroys a real compiled plugin and asks its
+    // backend what it saw.
+    s << "    // Declared FIRST so it is destroyed LAST: the backend below may\n";
+    s << "    // reach its dependencies through modules() from its destructor.\n";
     s << "    std::unique_ptr<LogosModules> m_logosModules;\n";
+    s << "    std::unique_ptr<" << spec.backendClass << "> m_backend;\n";
     s << "};\n";
     return h;
 }

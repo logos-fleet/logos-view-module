@@ -144,6 +144,23 @@
             || { echo "aboutToUnload() does not delegate to the SFINAE helper"; exit 1; }
           grep -q 'Qt::QueuedConnection' out/ticker_panel_ui_glue.cpp \
             || { echo "unloadFinished() is not emitted through a QUEUED connection"; exit 1; }
+
+          # ── Member DECLARATION order ─────────────────────────────────────
+          # Members are destroyed in reverse declaration order, so the typed
+          # LogosModules aggregate -- the thing modules() returns -- has to be
+          # declared BEFORE the backend to be destroyed AFTER it. Emitted the
+          # other way round, a backend destructor that calls modules() reads
+          # freed memory and nothing reports it: isContextReady() answers off a
+          # pointer that is never cleared. The FAST signal only; the
+          # `ui-plugin-metaobject` check is the one that proves the order by
+          # destroying a real plugin and asking the backend what it saw.
+          mods=$(grep -n 'm_logosModules;' out/ticker_panel_ui_glue.h | cut -d: -f1)
+          back=$(grep -n 'm_backend;' out/ticker_panel_ui_glue.h | cut -d: -f1)
+          test -n "$mods" -a -n "$back" \
+            || { echo "generated plugin declares no m_logosModules/m_backend members"; exit 1; }
+          test "$mods" -lt "$back" \
+            || { echo "m_logosModules (line $mods) must be declared BEFORE m_backend (line $back), so the typed-deps aggregate outlives the backend"; exit 1; }
+
           touch $out
         '';
 

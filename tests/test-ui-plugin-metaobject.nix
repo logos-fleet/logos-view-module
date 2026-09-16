@@ -9,6 +9,14 @@
 # for". No build fails, no load fails, no call fails; every view just silently
 # and permanently loses its chance to finish.
 #
+# The same reasoning covers the second thing this check pins: the DECLARATION
+# ORDER of the generated plugin's two members. `m_backend` declared before
+# `m_logosModules` destroys the typed-deps aggregate first, so a backend
+# destructor that calls modules() reads freed memory -- and says nothing,
+# because isContextReady() answers off a pointer nobody clears. Text in a
+# header is not evidence of a destruction order either, so the fixture backend
+# records what it actually saw as it was destroyed.
+#
 # So this does not grep the generator, and it does not grep the generator's
 # OUTPUT either -- text in a .cpp is not evidence that moc registered anything.
 # It runs the generator, COMPILES the plugin it emitted into a real Qt plugin,
@@ -93,14 +101,17 @@ pkgs.stdenv.mkDerivation {
     fi
 
     # Loads the plugin and resolves aboutToUnload/unloadFinished by STRING,
-    # then completes the handshake. See ui-plugin-metaobject/main.cpp.
-    ./build/ui_plugin_metaobject_check "$PWD/$PLUGIN"
+    # then completes the handshake -- and finally destroys the plugin and reads
+    # back the probe the backend's destructor wrote, which is the only way to
+    # see the member DECLARATION order the emitter chose. See
+    # ui-plugin-metaobject/main.cpp.
+    ./build/ui_plugin_metaobject_check "$PWD/$PLUGIN" "$PWD/dtor_probe.txt"
 
     runHook postCheck
   '';
 
   installPhase = ''
     mkdir -p $out
-    echo "generated view plugin publishes aboutToUnload/unloadFinished" > $out/result.txt
+    echo "generated view plugin publishes aboutToUnload/unloadFinished, and its LogosModules aggregate outlives the backend" > $out/result.txt
   '';
 }
