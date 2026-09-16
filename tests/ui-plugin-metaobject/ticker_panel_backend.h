@@ -48,14 +48,17 @@ public:
     // use-after-free that happens to read intact bytes would otherwise pass.
     ~TickerPanelBackend() override
     {
+        // Set by the checker before it loads the plugin; unset everywhere else,
+        // so a fixture built outside that harness stays a plain backend.
+        const QString probePath = qEnvironmentVariable("LOGOS_VIEW_DTOR_PROBE");
+        if (probePath.isEmpty())
+            return;
+
         const bool aggregateStillAlive =
             isContextReady() && LogosModules::liveCount > 0;
-        const QString probe = qEnvironmentVariable("LOGOS_VIEW_DTOR_PROBE");
-        if (probe.isEmpty())
-            return;
-        QFile f(probe);
-        if (f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-            f.write(aggregateStillAlive ? "modules-alive\n" : "modules-destroyed\n");
+        QFile probe(probePath);
+        if (probe.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+            probe.write(aggregateStillAlive ? "modules-alive\n" : "modules-destroyed\n");
     }
 
     void refresh() override {}

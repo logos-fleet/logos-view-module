@@ -22,7 +22,7 @@
 //
 // And one property of the plugin's LAYOUT, which no meta-object can show:
 //
-//   5. the LogosModules aggregate modules() returns OUTLIVES the backend. The
+//   4. the LogosModules aggregate modules() returns OUTLIVES the backend. The
 //      generated plugin owns both as unique_ptr members, so their declaration
 //      order is the whole of the answer -- members are destroyed in reverse,
 //      so the aggregate must be declared first. Declared the other way round,
@@ -39,12 +39,12 @@
 #include <QPluginLoader>
 #include <QTimer>
 
+#include <cstdio>
+
 // The one header this checker shares with the plugin, and the real host has it
 // too: initLogos(LogosAPI*) is the call that constructs the LogosModules
 // aggregate, so nothing about modules()' lifetime can be observed without it.
 #include "logos_api.h"
-
-#include <cstdio>
 
 static int g_failures = 0;
 
@@ -143,9 +143,10 @@ int main(int argc, char** argv)
     if (g_failures > 0)
         return 1;
 
-    // 3. Hand the plugin a LogosAPI, exactly as the host does: this is what
-    // builds the LogosModules aggregate whose lifetime stage 5 is about. By
-    // name again -- the host has no header for the generated class.
+    // Setup for property 4: hand the plugin a LogosAPI, exactly as the host
+    // does. This is the call that builds the LogosModules aggregate whose
+    // lifetime is in question. By name again -- the host has no header for the
+    // generated class.
     LogosAPI api;
     const int initIdx = mo->indexOfMethod("initLogos(LogosAPI*)");
     if (initIdx < 0) {
@@ -157,7 +158,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // 4. Drive it exactly as the host does, and require the completion to land.
+    // 3. Drive it exactly as the host does, and require the completion to land.
     Watcher watcher;
     QObject::connect(plugin, SIGNAL(unloadFinished()), &watcher, SLOT(onFinished()));
 
@@ -188,7 +189,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // 5. Destruction order. Destroy the plugin the way the host does at the
+    // 4. Destruction order. Destroy the plugin the way the host does at the
     // end of a teardown and read back what the backend's destructor saw.
     delete plugin;
 

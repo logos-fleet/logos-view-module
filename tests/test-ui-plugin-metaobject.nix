@@ -112,7 +112,6 @@ pkgs.stdenv.mkDerivation {
 
   installPhase = ''
     mkdir -p $out
-    echo "generated view plugin publishes aboutToUnload/unloadFinished" > $out/result.txt
-    echo "and its LogosModules aggregate outlives the backend" >> $out/result.txt
+    echo "generated view plugin publishes aboutToUnload/unloadFinished, and its LogosModules aggregate outlives the backend" > $out/result.txt
   '';
 }
